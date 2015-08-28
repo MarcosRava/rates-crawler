@@ -1,5 +1,5 @@
 # rates-crawler
 
-Selic
-CDI
-IPCA
+* Selic
+* CDI
+* IPCA
