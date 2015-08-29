@@ -1,13 +1,20 @@
+/*jslint node: true */
+"use strict";
+
 var url = 'http://www.portaldefinancas.com/js-tx/cdidiaria.js';
 var request = require('request');
 var cheerio = require('cheerio');
 var Q = require('q');
 var extend = require('extend');
 var moment = require('moment');
+var dateFormat = "DD/MM/YY";
+var rateType = "cdi";
+var source = "Portal de Finanças";
+var deferred, $, date, firstTr, rate;
 
 function get(requestOptions) {
   
-  var dateFormat = "DD/MM/YY";
+  deferred = Q.defer();
   
   var options = {
     //date: moment().add(-1).toDate()
@@ -15,7 +22,6 @@ function get(requestOptions) {
   
   options = extend(true, options, requestOptions);
   
-  var deferred = Q.defer();
   
   request(url, function (err, response, body) {
     if (err || (response && response.statusCode > 300)) {
@@ -23,37 +29,40 @@ function get(requestOptions) {
       return;
     }
     var html = body
-    .replace(/\r?\n/g, "")
-    .replace("document.write(''),document.write('", "")
-    .replace('//  id="e1"', '')
-    .replace("');", "");
-    var $ = cheerio.load(html
-                         , {
+        .replace(/\r?\n/g, "")
+        .replace("document.write(''),document.write('", "")
+        .replace('//  id="e1"', '')
+        .replace("');", "");
+    
+    $ = cheerio.load(html, {
       normalizeWhitespace: false,
       xmlMode: false,
       decodeEntities: true
     });
-    var firstTr = $('tr').eq(1);
-    var rate = firstTr.children().eq(1).text();
-    rate = parseFloat(rate.replace(",", "."))
-    var _date = firstTr.children().eq(0).text()
+    firstTr = $('tr').eq(1);
+    rate = firstTr.children().eq(1).text();
+    rate = parseFloat(rate.replace(/\./g, '').replace(/,/g, '.'));
+    date = firstTr.children().eq(0).text();
     
-    if (options.date && moment.utc(options.date).format(dateFormat) !== _date) {
+    if (options.date && moment.utc(options.date).format(dateFormat) !== date) {
       return deferred.reject({
         error: true,
+        rateType: rateType,
+        source: source,
         msg: "date " + options.date + " dont match"
-      })
+      });
     }
     
-    _date = moment(_date, dateFormat);
+    date = moment(date, dateFormat);
     
     deferred.resolve({
-      date:_date.toDate(), 
+      date: date.toDate(),
       rate: rate,
-      source: "Portal de Finanças",
+      rateType: rateType,
+      source: source,
       error: false
     });
-  })
+  });
   
   return deferred.promise;
 }
